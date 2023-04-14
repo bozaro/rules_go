@@ -120,6 +120,7 @@ def _go_binary_impl(ctx):
         version_file = ctx.version_file,
         info_file = ctx.info_file,
         executable = executable,
+        modinfo_file = ctx.file.modinfo,
     )
 
     providers = [
@@ -397,6 +398,9 @@ _go_binary_kwargs = {
             <li>`c-archive`: Builds an archive that can be linked into a C program.</li>
             </ul>
             """,
+        ),
+        "modinfo": attr.label(
+            allow_single_file = True,
         ),
         "_go_context_data": attr.label(default = "//:go_context_data", cfg = go_transition),
         "_allowlist_function_transition": attr.label(

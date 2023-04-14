@@ -67,7 +67,8 @@ def emit_link(
         executable = None,
         gc_linkopts = [],
         version_file = None,
-        info_file = None):
+        info_file = None,
+        modinfo_file = None):
     """See go/toolchains.rst#link for full documentation."""
 
     if archive == None:
@@ -133,6 +134,8 @@ def emit_link(
         arcs.append(go.coverdata.data)
     builder_args.add_all(arcs, before_each = "-arc", map_each = _format_archive)
     builder_args.add("-package_list", go.package_list)
+    if modinfo_file:
+        builder_args.add("-modinfo", modinfo_file)
 
     # Build a list of rpaths for dynamic libraries we need to find.
     # rpaths are relative paths from the binary to directories where libraries
@@ -194,6 +197,8 @@ def emit_link(
     inputs_direct = stamp_inputs + [go.sdk.package_list]
     if go.coverage_enabled and go.coverdata:
         inputs_direct.append(go.coverdata.data.file)
+    if modinfo_file:
+        inputs_direct.append(modinfo_file)
     inputs_transitive = [
         archive.libs,
         archive.cgo_deps,

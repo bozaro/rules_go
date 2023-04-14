@@ -17,6 +17,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -31,6 +32,11 @@ type archive struct {
 	label, importPath, packagePath, file string
 	importPathAliases                    []string
 }
+
+var (
+	infoStart, _ = hex.DecodeString("3077af0c9274080241e1c107e6d618e6")
+	infoEnd, _   = hex.DecodeString("f932433186182072008242104116d8f2")
+)
 
 // checkImports verifies that each import in files refers to a
 // direct dependency in archives or to a standard library package
@@ -154,7 +160,7 @@ func buildImportcfgFileForCompile(imports map[string]*archive, installSuffix, di
 	return filename, nil
 }
 
-func buildImportcfgFileForLink(archives []archive, stdPackageListPath, installSuffix, dir string) (string, error) {
+func buildImportcfgFileForLink(archives []archive, stdPackageListPath, installSuffix, dir, modinfo string) (string, error) {
 	buf := &bytes.Buffer{}
 	goroot, ok := os.LookupEnv("GOROOT")
 	if !ok {
@@ -185,6 +191,10 @@ func buildImportcfgFileForLink(archives []archive, stdPackageListPath, installSu
 		depsSeen[arc.packagePath] = arc.label
 		fmt.Fprintf(buf, "packagefile %s=%s\n", arc.packagePath, arc.file)
 	}
+	if info := strings.TrimSpace(modinfo); info != "" {
+		fmt.Fprintf(buf, "modinfo %q\n", ModInfoData(modinfo+"\n"))
+	}
+	//buf.Write([]byte("\n"))
 	f, err := ioutil.TempFile(dir, "importcfg")
 	if err != nil {
 		return "", err
@@ -258,4 +268,8 @@ func (m *archiveMultiFlag) Set(v string) error {
 	}
 	*m = append(*m, a)
 	return nil
+}
+
+func ModInfoData(info string) []byte {
+	return []byte(string(infoStart) + info + string(infoEnd))
 }

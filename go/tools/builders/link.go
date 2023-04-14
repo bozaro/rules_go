@@ -50,6 +50,7 @@ func link(args []string) error {
 	packageList := flags.String("package_list", "", "The file containing the list of standard library packages")
 	buildmode := flags.String("buildmode", "", "Build mode used.")
 	flags.Var(&xdefs, "X", "A string variable to replace in the linked binary (repeated).")
+	modinfoFile := flags.String("modinfo", "Information for buildinfo.Read()", "modinfo.")
 	flags.Var(&stamps, "stamp", "The name of a file with stamping values.")
 	flags.Var(&experiments, "experiment", "Go experiments to enable via GOEXPERIMENT")
 	conflictErrMsg := flags.String("conflict_err", "", "Error message about conflicts to report if there's a link error.")
@@ -97,8 +98,13 @@ func link(args []string) error {
 		}
 	}
 
+	modinfo, err := loadModInfo(*modinfoFile, stampMap)
+	if err != nil {
+		return err
+	}
+
 	// Build an importcfg file.
-	importcfgName, err := buildImportcfgFileForLink(archives, *packageList, goenv.installSuffix, filepath.Dir(*outFile))
+	importcfgName, err := buildImportcfgFileForLink(archives, *packageList, goenv.installSuffix, filepath.Dir(*outFile), modinfo)
 	if err != nil {
 		return err
 	}
@@ -166,4 +172,26 @@ func link(args []string) error {
 	}
 
 	return nil
+}
+
+func loadModInfo(modinfoFile string, stampMap map[string]string) (string, error) {
+	if modinfoFile == "" {
+		return "", nil
+	}
+	content, err := os.ReadFile(modinfoFile)
+	if err != nil {
+		return "", err
+	}
+	var missingKey bool
+	modinfo := regexp.MustCompile(`\{.+?\}`).ReplaceAllStringFunc(string(content), func(key string) string {
+		if value, ok := stampMap[key[1:len(key)-1]]; ok {
+			return value
+		}
+		missingKey = true
+		return key
+	})
+	if missingKey {
+		return "", nil
+	}
+	return modinfo, nil
 }
